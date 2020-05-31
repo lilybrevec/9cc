@@ -13,10 +13,11 @@
 - isspace:標準空白文字かのチェック
 - [LR法](https://ja.wikipedia.org/wiki/LR%E6%B3%95)
 - [再帰下降構文解析](https://ja.wikipedia.org/wiki/%E5%86%8D%E5%B8%B0%E4%B8%8B%E9%99%8D%E6%A7%8B%E6%96%87%E8%A7%A3%E6%9E%90)
-- []「EmacsでC/C++用にclangdとclang-formatを使う - Qiita」
-https://qiita.com/kari_tech/items/4754fac39504dccfd7be[]「EmacsでC/C++用にclangdとclang-formatを使う - Qiita」
-https://qiita.com/kari_tech/items/4754fac39504dccfd7be
+- [EmacsでC/C++用にclangdとclang-formatを使う - Qiita](https://qiita.com/kari_tech/items/4754fac39504dccfd7be)
 
 ## 2020/5/31 夜
+- Level 5:四則演算実装
 - ispunct
 - isdigit
+- プロトタイプ宣言をするとエラーが防げる
+- レジスタやスタックしている認識を持ちながら、四則演算を実装する。

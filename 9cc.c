@@ -30,6 +30,10 @@ struct Token {
 // 入力文字列
 static char *current_input;
 
+// プロトタイプ宣言
+static bool equal(Token*, char*);
+static Token *skip(Token*, char*);
+static long get_number(Token*);
 
 //
 // Parser
@@ -132,7 +136,6 @@ static Node *primary(Token **rest, Token *tok) {
   return node;
 }
 
-
 //
 // Error Processings
 //
@@ -210,6 +213,59 @@ static Token *new_token(TokenKind kind, Token *cur, char *str, int len) {
 }
 
 
+
+//
+// Code generator
+//
+
+// register操作
+static char *reg(int idx) {
+  static char *r[] = {"r10", "r11", "r12", "r13", "r14", "r15"};
+  if (idx < 0 || sizeof(r) / sizeof(*r) <= idx)
+    error("register out of range: %d", idx);
+  return r[idx];
+}
+
+// レジスタのtopこんな宣言でいいのか
+static int top;
+
+// Nodeから実行コードを出力する
+static void gen_expr(Node *node) {
+  if (node->kind == ND_NUM) {
+    printf("  mov %s, %lu\n", reg(top++), node->val);
+    return;
+  }
+
+  gen_expr(node->lhs);
+  gen_expr(node->rhs);
+
+  char *rd = reg(top - 2);
+  char *rs = reg(top - 1);
+  top--;
+
+  switch (node->kind) {
+  case ND_ADD:
+    printf("  add %s, %s\n", rd, rs);
+    return;
+  case ND_SUB:
+    printf("  sub %s, %s\n", rd, rs);
+    return;
+  case ND_MUL:
+    printf("  imul %s, %s\n", rd, rs);
+    return;
+  case ND_DIV:
+    printf("  mov rax, %s\n", rd);
+    printf("  cqo\n");
+    printf("  idiv %s\n", rs);
+    printf("  mov %s, rax\n", rd);
+    return;
+  default:
+    error("invalid expression");
+  }
+}
+
+
+
 // 入力文字列pをトークナイズしてそれを返す
 static Token *tokenize(void) {
   Token head = {};
@@ -257,32 +313,33 @@ int main(int argc, char **argv) {
   // トークナイズする
   Token *tok = tokenize();
 
+  // tokenを解析
+  Node *node = expr(&tok, tok);
+
+  if (tok->kind != TK_EOF)
+    error_tok(tok, "extra token");
+
   // アセンブリの前半部分を出力
   printf(".intel_syntax noprefix\n");
   printf(".global main\n");
   printf("main:\n");
 
-  // 式の最初は数でなければならないので、それをチェックして
-  // 最初のmov命令を出力
-  // The first token must be a number
-  printf("  mov rax, %ld\n", get_number(tok));
-  tok = tok->next;
+  // Save callee-saved registers.謎
+  printf("  push r12\n");
+  printf("  push r13\n");
+  printf("  push r14\n");
+  printf("  push r15\n");
 
+  // Traverse the AST to emit assembly.
+  gen_expr(node);
+  // Set the result of the expression to RAX so that
+  // the result becomes a return value of this function.
+  printf("  mov rax, %s\n", reg(top - 1));
 
-  // `+ <数>`あるいは`- <数>`というトークンの並びを消費しつつ
-  // アセンブリを出力
-  while (tok->kind != TK_EOF) {
-    if (equal(tok, "+")) {
-      printf("  add rax, %ld\n", get_number(tok->next));
-      tok = tok->next->next;
-      continue;
-    }
-
-    tok = skip(tok, "-");
-    printf("  sub rax, %ld\n", get_number(tok));
-    tok = tok->next;
-  }
-
-printf("  ret\n");
+  printf("  pop r15\n");
+  printf("  pop r14\n");
+  printf("  pop r13\n");
+  printf("  pop r12\n");
+  printf("  ret\n");
   return 0;
 }
