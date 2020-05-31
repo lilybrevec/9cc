@@ -44,6 +44,10 @@ typedef enum {
   ND_SUB, // -
   ND_MUL, // *
   ND_DIV, // /
+  ND_EQ,  // ==
+  ND_NE,  // !=
+  ND_LT,  // <
+  ND_LE,  // <=
   ND_NUM, // Integer
 } NodeKind;
 
@@ -78,13 +82,77 @@ static Node *new_num(long val) {
 
 // プロトタイプ宣言
 static Node *expr(Token **rest, Token *tok);
+static Node *equality(Token **rest, Token *tok);
+static Node *relational(Token **rest, Token *tok);
+static Node *add(Token **rest, Token *tok);
 static Node *mul(Token **rest, Token *tok);
 static Node *unary(Token **rest, Token *tok);
 static Node *primary(Token **rest, Token *tok);
 
 
-// expr = mul ("+" mul | "-" mul)*
+// expr = equality
 static Node *expr(Token **rest, Token *tok) {
+ return equality(rest, tok);
+}
+
+// equality = relational ("==" relational | "!=" relational)*
+static Node *equality(Token **rest, Token *tok) {
+  Node *node = relational(&tok, tok);
+
+  for (;;) {
+    if (equal(tok, "==")) {
+      Node *rhs = relational(&tok, tok->next);
+      node = new_binary(ND_EQ, node, rhs);
+      continue;
+    }
+
+    if (equal(tok, "!=")) {
+      Node *rhs = relational(&tok, tok->next);
+      node = new_binary(ND_NE, node, rhs);
+      continue;
+    }
+
+    *rest = tok;
+    return node;
+  }
+}
+
+// relational = add ("<" add | "<=" add | ">" add | ">=" add)*
+static Node *relational(Token **rest, Token *tok) {
+  Node *node = add(&tok, tok);
+
+  for (;;) {
+    if (equal(tok, "<")) {
+      Node *rhs = add(&tok, tok->next);
+      node = new_binary(ND_LT, node, rhs);
+      continue;
+    }
+
+    if (equal(tok, "<=")) {
+      Node *rhs = add(&tok, tok->next);
+      node = new_binary(ND_LE, node, rhs);
+      continue;
+    }
+
+    if (equal(tok, ">")) {
+      Node *rhs = add(&tok, tok->next);
+      node = new_binary(ND_LT, rhs, node);
+      continue;
+    }
+
+    if (equal(tok, ">=")) {
+      Node *rhs = add(&tok, tok->next);
+      node = new_binary(ND_LE, rhs, node);
+      continue;
+    }
+
+    *rest = tok;
+    return node;
+  }
+}
+
+// add = mul ("+" mul | "-" mul)*
+static Node *add(Token **rest, Token *tok) {
   Node *node = mul(&tok, tok);
 
   for (;;) {
@@ -276,12 +344,35 @@ static void gen_expr(Node *node) {
     printf("  idiv %s\n", rs);
     printf("  mov %s, rax\n", rd);
     return;
+  case ND_EQ:
+    printf("  cmp %s, %s\n", rd, rs);
+    printf("  sete al\n");
+    printf("  movzb %s, al\n", rd);
+    return;
+  case ND_NE:
+    printf("  cmp %s, %s\n", rd, rs);
+    printf("  setne al\n");
+    printf("  movzb %s, al\n", rd);
+    return;
+  case ND_LT:
+    printf("  cmp %s, %s\n", rd, rs);
+    printf("  setl al\n");
+    printf("  movzb %s, al\n", rd);
+    return;
+  case ND_LE:
+    printf("  cmp %s, %s\n", rd, rs);
+    printf("  setle al\n");
+    printf("  movzb %s, al\n", rd);
+    return;
   default:
     error("invalid expression");
   }
 }
 
-
+// 2つのcharを比較し、一致すればtrue
+static bool startswith(char *p, char *q) {
+  return strncmp(p, q, strlen(q)) == 0;
+}
 
 // 入力文字列pをトークナイズしてそれを返す
 static Token *tokenize(void) {
@@ -305,7 +396,15 @@ static Token *tokenize(void) {
       continue;
     }
 
-    // Punctuator
+    // Multi-letter punctuators
+    if (startswith(p, "==") || startswith(p, "!=") ||
+        startswith(p, "<=") || startswith(p, ">=")) {
+      cur = new_token(TK_RESERVED, cur, p, 2);
+      p += 2;
+      continue;
+    }
+
+    // Single-letter punctuators
     if (ispunct(*p)) {
       cur = new_token(TK_RESERVED, cur, p++, 1);
       continue;
