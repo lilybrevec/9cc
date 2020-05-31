@@ -10,8 +10,13 @@
 - va_start:可変長引数の初期化
 - vfprintf:ストリーム, 書式文字列, 変数を格納するための可変長引数
 - strncmp:C言語の文字列比較
+- isspace:標準空白文字かのチェック
 - [LR法](https://ja.wikipedia.org/wiki/LR%E6%B3%95)
 - [再帰下降構文解析](https://ja.wikipedia.org/wiki/%E5%86%8D%E5%B8%B0%E4%B8%8B%E9%99%8D%E6%A7%8B%E6%96%87%E8%A7%A3%E6%9E%90)
 - []「EmacsでC/C++用にclangdとclang-formatを使う - Qiita」
 https://qiita.com/kari_tech/items/4754fac39504dccfd7be[]「EmacsでC/C++用にclangdとclang-formatを使う - Qiita」
 https://qiita.com/kari_tech/items/4754fac39504dccfd7be
+
+## 2020/5/31 夜
+- ispunct
+- isdigit

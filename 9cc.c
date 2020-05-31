@@ -5,6 +5,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+//
+// Tokenizer
+//
+
 // トークンの種類
 typedef enum {
   TK_RESERVED,  // 記号
@@ -26,7 +30,112 @@ struct Token {
 // 入力文字列
 static char *current_input;
 
-// Error Handlings
+
+//
+// Parser
+//
+
+typedef enum {
+  ND_ADD, // +
+  ND_SUB, // -
+  ND_MUL, // *
+  ND_DIV, // /
+  ND_NUM, // Integer
+} NodeKind;
+
+// AST node type
+typedef struct Node Node;
+struct Node {
+  NodeKind kind; // Node kind
+  Node *lhs;     // Left-hand side
+  Node *rhs;     // Right-hand side
+  long val;      // Used if kind == ND_NUM
+};
+
+static Node *new_node(NodeKind kind) {
+  Node *node = calloc(1, sizeof(Node));
+  node->kind = kind;
+  return node;
+}
+
+static Node *new_binary(NodeKind kind, Node *lhs, Node *rhs) {
+  Node *node = new_node(kind);
+  node->lhs = lhs;
+  node->rhs = rhs;
+  return node;
+}
+
+static Node *new_num(long val) {
+  Node *node = new_node(ND_NUM);
+  node->val = val;
+  return node;
+}
+
+static Node *expr(Token **rest, Token *tok);
+static Node *mul(Token **rest, Token *tok);
+static Node *primary(Token **rest, Token *tok);
+
+// expr = mul ("+" mul | "-" mul)*
+static Node *expr(Token **rest, Token *tok) {
+  Node *node = mul(&tok, tok);
+
+  for (;;) {
+    if (equal(tok, "+")) {
+      Node *rhs = mul(&tok, tok->next);
+      node = new_binary(ND_ADD, node, rhs);
+      continue;
+    }
+
+    if (equal(tok, "-")) {
+      Node *rhs = mul(&tok, tok->next);
+      node = new_binary(ND_SUB, node, rhs);
+      continue;
+    }
+
+    *rest = tok;
+    return node;
+  }
+}
+
+// mul = primary ("*" primary | "/" primary)*
+static Node *mul(Token **rest, Token *tok) {
+  Node *node = primary(&tok, tok);
+
+  for (;;) {
+    if (equal(tok, "*")) {
+      Node *rhs = primary(&tok, tok->next);
+      node = new_binary(ND_MUL, node, rhs);
+      continue;
+    }
+
+    if (equal(tok, "/")) {
+      Node *rhs = primary(&tok, tok->next);
+      node = new_binary(ND_DIV, node, rhs);
+      continue;
+    }
+
+    *rest = tok;
+    return node;
+  }
+}
+
+// primary = "(" expr ")" | num
+static Node *primary(Token **rest, Token *tok) {
+  if (equal(tok, "(")) {
+    Node *node = expr(&tok, tok->next);
+    *rest = skip(tok, ")");
+    return node;
+  }
+
+  Node *node = new_num(get_number(tok));
+  *rest = tok->next;
+  return node;
+}
+
+
+//
+// Error Processings
+//
 
 // Reports an error and exit.
 static void error(char *fmt, ...) {
@@ -66,6 +175,9 @@ static void error_tok(Token *tok, char *fmt, ...) {
 }
 
 
+//
+// Processing
+//
 
 // Consumes the current token if it matches `s`.
 static bool equal(Token *tok, char *s) {
@@ -121,7 +233,7 @@ static Token *tokenize(void) {
     }
 
     // Punctuator
-    if (*p == '+' || *p == '-') {
+    if (ispunct(*p)) {
       cur = new_token(TK_RESERVED, cur, p++, 1);
       continue;
     }
