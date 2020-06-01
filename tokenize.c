@@ -3,7 +3,6 @@
 // 入力文字列
 static char *current_input;
 
-
 //
 // Error Processings
 //
