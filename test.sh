@@ -3,8 +3,8 @@ assert() {
   expected="$1"
   input="$2"
 
-  ./9cc "$input" > tmp.s
-  cc -o tmp tmp.s
+  ./9cc "$input" > tmp.s || exit
+  gcc -static -o tmp tmp.s
   ./tmp
   actual="$?"
 
