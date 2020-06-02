@@ -38,3 +38,14 @@ Cのstaticキーワードは、主に次の2つの用途で使われます。
 1.ローカル変数にstaticをつけて、関数を抜けた後でも値が保存されるようにする
 2.グローバル変数や関数にstaticをつけて、その変数や関数のスコープをファイルスコープにする
 ```
+
+## 2020/6/3 深夜
+- startswithの続きもちゃんと確かめるの大事だなと思いました。
+```c
+// Keywords
+if (startswith(p, "return") && !is_alnum(p[6])) {
+  cur = new_token(TK_RESERVED, cur, p, 6);
+  p += 6;
+  continue;
+}
+```
