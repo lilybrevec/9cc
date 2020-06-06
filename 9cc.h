@@ -1,3 +1,4 @@
+#define _POSIX_C_SOURCE 200809L
 #include <assert.h>
 #include <ctype.h>
 #include <stdarg.h>
@@ -34,6 +35,14 @@ long get_number(Token*);
 void error(char *fmt, ...);
 void error_tok(Token *tok, char *fmt, ...);
 
+// Local variable
+typedef struct Var Var;
+struct Var {
+  Var *next;
+  char *name; // Variable name
+  int offset; // Offset from RBP
+};
+
 typedef enum {
   ND_ADD, // +
   ND_SUB, // -
@@ -58,14 +67,20 @@ struct Node {
   Node *lhs;     // Left-hand side
   Node *rhs;     // Right-hand side
   long val;      // Used if kind == ND_NUM
-  char name;
+  Var *var;      // Used if kind == ND_VAR
 };
 
-Node *parse(Token *tok);
+typedef struct Function Function;
+struct Function {
+  Node *node;
+  Var *locals;
+  int stack_size;
+};
+
+Function *parse(Token *tok);
 
 //
 // codegen.c
 //
 
-void codegen(Node *node);
-
+void codegen(Function *prog);
