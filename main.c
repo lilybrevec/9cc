@@ -13,16 +13,6 @@ int main(int argc, char **argv) {
   Token *tok = tokenize(argv[1]);
   Function *prog = parse(tok);
 
-  // Assign offsets to local variables.
-  int offset = 32; // 32 for callee-saved registers
-  for (Var *var = prog->locals; var; var = var->next) {
-    offset += 8;
-    var->offset = offset;
-  }
-
-  // よくわからないけどヨシ！
-  prog->stack_size = align_to(offset, 16);
-
   // Traverse the AST to emit assembly.
   codegen(prog);
 

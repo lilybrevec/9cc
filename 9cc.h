@@ -7,12 +7,15 @@
 #include <stdlib.h>
 #include <string.h>
 
+typedef struct Node Node;
+
 // トークンの種類
 typedef enum {
-  TK_RESERVED,  // 記号
-  TK_IDENT,     // 識別子
-  TK_NUM,       // 整数トークン
-  TK_EOF,       // 入力の終わりを表すトークン
+  TK_IDENT,   // Identifiers 識別子
+  TK_PUNCT,   // Punctuators
+  TK_KEYWORD, // Keywords
+  TK_NUM,     // Numeric literals 整数トークン
+  TK_EOF,     // End-of-file markers 入力の終わりを表すトークン
 } TokenKind;
 
 typedef struct Token Token;
@@ -30,18 +33,27 @@ struct Token {
 bool equal(Token*, char*);
 Token *skip(Token*, char*);
 Token *tokenize(char *input);
-long get_number(Token*);
 
 void error(char *fmt, ...);
+void error_at(char *loc, char *fmt, ...);
 void error_tok(Token *tok, char *fmt, ...);
 
 // Local variable
-typedef struct Var Var;
-struct Var {
-  Var *next;
+typedef struct Obj Obj;
+struct Obj {
+  Obj *next;
   char *name; // Variable name
   int offset; // Offset from RBP
 };
+
+typedef struct Function Function;
+struct Function {
+  Node *body;
+  Obj *locals;
+  int stack_size;
+};
+
+
 
 typedef enum {
   ND_ADD, // +
@@ -49,11 +61,13 @@ typedef enum {
   ND_MUL, // *
   ND_DIV, // /
   ND_EQ,  // ==
-  ND_NE,  // !=
+  ND_NEG,  // !=
   ND_LT,  // <
   ND_LE,  // <=
   ND_ASSIGN,  // =
+  ND_IF,     // if
   ND_RETURN, // return
+  ND_BLOCK,     // { ... }
   ND_EXPR_STMT, // Expression statement
   ND_VAR, // Variable
   ND_NUM, // Integer
@@ -66,15 +80,16 @@ struct Node {
   Node *next;    // Next node
   Node *lhs;     // Left-hand side
   Node *rhs;     // Right-hand side
-  long val;      // Used if kind == ND_NUM
-  Var *var;      // Used if kind == ND_VAR
-};
+  // "if" statement
+  Node *cond;
+  Node *then;
+  Node *els;
 
-typedef struct Function Function;
-struct Function {
-  Node *node;
-  Var *locals;
-  int stack_size;
+  // Block
+  Node *body;
+
+  Obj *var;      // Used if kind == ND_VAR
+  int val;       // Used if kind == ND_NUM
 };
 
 Function *parse(Token *tok);

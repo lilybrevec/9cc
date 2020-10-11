@@ -3,6 +3,10 @@
 // レジスタのtop
 static int top;
 
+static int count(void) {
+  static int i = 1;
+  return i++;
+}
 
 // register操作
 static char *reg(int idx) {
@@ -98,6 +102,18 @@ static void gen_expr(Node *node) {
 
 static void gen_stmt(Node *node) {
   switch (node->kind) {
+  case ND_IF:
+    int c = count();
+    gen_expr(node->cond);
+    printf("  cmp $0, %%rax\n");
+    printf("  je  .L.else.%d\n", c);
+    gen_stmt(node->then);
+    printf("  jmp .L.end.%d\n", c);
+    printf(".L.else.%d:\n", c);
+    if (node->els)
+      gen_stmt(node->els);
+    printf(".L.end.%d:\n", c);
+    return;
   case ND_RETURN:
     gen_expr(node->lhs);
     printf("  mov rax, %s\n", reg(--top));
