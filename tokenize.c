@@ -90,6 +90,22 @@ static bool is_alnum(char c) {
   return is_alpha(c) || ('0' <= c && c <= '9');
 }
 
+// キーワード判定
+static bool is_keyword(Token *tok) {
+  static char *kw[] = {"return", "if", "else"};
+
+  for (int i = 0; i < sizeof(kw) / sizeof(*kw); i++)
+    if (equal(tok, kw[i]))
+      return true;
+  return false;
+}
+
+static void convert_keywords(Token *tok) {
+  for (Token *t = tok; t->kind != TK_EOF; t = t->next)
+    if (t->kind == TK_IDENT && is_keyword(t))
+      t->kind = TK_RESERVED;
+}
+
 // 入力文字列pをトークナイズしてそれを返す
 Token *tokenize(char *p) {
   Token head = {};
@@ -112,12 +128,6 @@ Token *tokenize(char *p) {
       continue;
     }
 
-    // Keywords
-    if (startswith(p, "return") && !is_alnum(p[6])) {
-      cur = new_token(TK_RESERVED, cur, p, 6);
-      p += 6;
-      continue;
-    }
 
     // Identifier
     if (is_alpha(*p)) {
@@ -146,5 +156,6 @@ Token *tokenize(char *p) {
   }
 
   new_token(TK_EOF, cur, p, 0);
+  convert_keywords(head.next);
   return head.next;
 }
