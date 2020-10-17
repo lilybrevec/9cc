@@ -18,11 +18,18 @@ static char *reg(int idx) {
     error("register out of range: %d", idx);
   return r[idx];
 }
+
+static void gen_expr(Node *node);
+
 // lea dst, [src] : [src]のアドレス計算を行うが、メモリアクセスは行わずアドレス計算の結果そのものをdstにストア
 // Pushes the given node's address to the stack.
 static void gen_addr(Node *node) {
-  if (node->kind == ND_VAR) {
+  switch (node->kind) {
+  case ND_VAR:
     printf("  lea -%d(%%rbp), %s\n", node->var->offset, reg(top++));
+    return;
+  case ND_DEREF:
+    gen_expr(node->lhs);
     return;
   }
 
@@ -49,20 +56,36 @@ static void gen_expr(Node *node) {
     gen_addr(node);
     load();
     return;
+  case ND_DEREF:
+    gen_expr(node->lhs);
+    load();
+    return;
+  case ND_ADDR:
+    gen_addr(node->lhs);
+    return;
   case ND_ASSIGN:
     gen_expr(node->rhs);
     gen_addr(node->lhs);
     store();
     return;
-  case ND_FUNCALL:
+  case ND_FUNCALL: {
+    int nargs = 0;
+    for (Node *arg = node->args; arg; arg = arg->next) {
+      gen_expr(arg);
+      nargs++;
+    }
+    // 引数
+    for (int i = 1; i <= nargs; i++)
+      printf("  mov %s, %s\n", reg(--top), argreg[nargs - i]);
     printf("  push %%r10\n");
     printf("  push %%r11\n");
     printf("  mov $0, %%rax\n");
     printf("  call %s\n", node->funcname);
+    printf("  pop %%r11\n");
+    printf("  pop %%r10\n");
     printf("  mov %%rax, %s\n", reg(top++));
-    printf("  push %%r11\n");
-    printf("  push %%r10\n");
     return;
+  }
   }
 
   gen_expr(node->lhs);
