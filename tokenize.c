@@ -92,7 +92,7 @@ static bool is_alnum(char c) {
 
 // キーワード判定
 static bool is_keyword(Token *tok) {
-  static char *kw[] = {"return", "if", "else"};
+  static char *kw[] = {"return", "if", "else", "for", "while"};
 
   for (int i = 0; i < sizeof(kw) / sizeof(*kw); i++)
     if (equal(tok, kw[i]))
