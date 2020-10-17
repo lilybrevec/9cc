@@ -2,6 +2,8 @@
 
 // レジスタのtop
 static int top;
+// 引数のレジスタ 6変数まで
+static char *argreg[] = {"%rdi", "%rsi", "%rdx", "%rcx", "%r8", "%r9"};
 
 // 数えてくれる
 static int count(void) {
@@ -51,6 +53,15 @@ static void gen_expr(Node *node) {
     gen_expr(node->rhs);
     gen_addr(node->lhs);
     store();
+    return;
+  case ND_FUNCALL:
+    printf("  push %%r10\n");
+    printf("  push %%r11\n");
+    printf("  mov $0, %%rax\n");
+    printf("  call %s\n", node->funcname);
+    printf("  mov %%rax, %s\n", reg(top++));
+    printf("  push %%r11\n");
+    printf("  push %%r10\n");
     return;
   }
 
