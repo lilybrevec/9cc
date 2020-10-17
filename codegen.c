@@ -16,7 +16,7 @@ static char *reg(int idx) {
     error("register out of range: %d", idx);
   return r[idx];
 }
-
+// lea dst, [src] : [src]のアドレス計算を行うが、メモリアクセスは行わずアドレス計算の結果そのものをdstにストア
 // Pushes the given node's address to the stack.
 static void gen_addr(Node *node) {
   if (node->kind == ND_VAR) {
@@ -79,7 +79,12 @@ static void gen_expr(Node *node) {
     return;
   case ND_EQ:
     printf("  cmp %s, %s\n", rs, rd);
+    // フラグレジスタは通常の整数レジスタではないので、RAXに比較結果をセットしたい場合、フラグレジスタの特定のビットをRAXにコピーしてくる必要があります。
+    //それを行うのがsete命令です。sete命令は、直前のcmp命令で調べた2つのレジスタの値が同じだった場合に、指定されたレジスタ（ここではAL）に1をセットします。それ以外の場合は0をセットします。
+
+    // ALというのは本書のここまでに登場していない新しいレジスタ名ですが、実はALはRAXの下位8ビットを指す別名レジスタにすぎません。従ってseteがALに値をセットすると、自動的にRAXも更新されることになります。
     printf("  sete %%al\n");
+    // ただし、RAXをAL経由で更新するときに上位56ビットは元の値のままになるので、RAX全体を0か1にセットしたい場合、上位56ビットはゼロクリアする必要があります。それを行うのがmovzb命令です。sete命令が直接RAXに書き込めればよいのですが、seteは8ビットレジスタしか引数に取れない仕様になっているので、比較命令では、このように2つの命令を使ってRAXに値をセットすることになります。
     printf("  movzx %%al, %s\n", rd);
     return;
   case ND_NE:
@@ -114,6 +119,24 @@ static void gen_stmt(Node *node) {
     printf(".L.else.%d:\n", c);
     if (node->els)
       gen_stmt(node->els);
+    printf(".L.end.%d:\n", c);
+    return;
+  }
+  case ND_FOR: {
+    int c = count();
+    gen_stmt(node->init);
+    printf(".L.begin.%d:\n", c);
+    if (node->cond) {
+      gen_expr(node->cond);
+      printf("  cmp $0, %s\n", reg(--top));
+      printf("  je  .L.end.%d\n", c);
+    }
+    gen_stmt(node->then);
+    if (node->inc) {
+      gen_expr(node->inc);
+      top--;
+    }
+    printf("  jmp .L.begin.%d\n", c);
     printf(".L.end.%d:\n", c);
     return;
   }
@@ -161,4 +184,3 @@ void codegen(Function *prog) {
   printf("  pop %%rbp\n");
   printf("  ret\n");
 }
-
